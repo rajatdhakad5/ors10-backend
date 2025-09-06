@@ -4,44 +4,50 @@ pipeline {
     environment {
         JAVA_HOME = "C:\\Program Files\\Java\\jdk-11.0.15.1"
         PATH = "${env.JAVA_HOME}\\bin;${env.PATH}"
-        
-        BACKEND_REPO = 'https://github.com/rajatdhakad5/ors10-backend.git'
-        BACKEND_BRANCH = 'master'
-        BACKEND_DIR = 'ors10-backend'
-        BACKEND_JAR = 'ors10-backend\\target\\backend.jar'  // update with actual jar name
+        BACKEND_REPO = "https://github.com/rajatdhakad5/ors10-backend.git"
+        BACKEND_BRANCH = "master"
+        JAR_FILE = "target\\orsp10-backend-0.0.1-SNAPSHOT.jar"
+        BACKEND_PORT = "8084"
     }
 
     stages {
-        stage('Checkout Backend') {
+        stage('Checkout') {
             steps {
-                dir("${BACKEND_DIR}") {
-                    deleteDir()
-                    git branch: "${BACKEND_BRANCH}", url: "${BACKEND_REPO}"
-                }
+                echo "🔄 Checking out backend code..."
+                deleteDir()
+                git branch: "${env.BACKEND_BRANCH}", url: "${env.BACKEND_REPO}"
             }
         }
 
-        stage('Build Backend') {
+        stage('Build with Maven') {
             steps {
-                dir("${BACKEND_DIR}") {
-                    echo "🛠 Building Spring Boot project..."
-                    bat "mvn clean install"
-                }
+                echo "⚙️ Building Spring Boot JAR with Maven..."
+                bat "mvn clean package -DskipTests"
             }
         }
 
-        stage('Run Backend') {
+        stage('Restart Backend') {
             steps {
-                echo "🚀 Running Spring Boot backend..."
-                bat "start cmd /c java -jar ${BACKEND_JAR}"
-                // 'start cmd /c' ensures backend runs in new command window and Jenkins continues
+                echo "♻ Restarting backend (java -jar on port ${env.BACKEND_PORT})..."
+                script {
+                    // Kill old process running on port 8084
+                    bat '''
+                    for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":8084"') do taskkill /PID %%a /F
+                    '''
+
+                    // Start new backend on port 8084 from target folder
+                    bat """
+                    cd /d target
+                    start java -jar orsp10-backend-0.0.1-SNAPSHOT.jar --server.port=${env.BACKEND_PORT}
+                    """
+                }
             }
         }
     }
 
     post {
         always {
-            echo "✅ Backend pipeline completed."
+            echo "✅ Backend pipeline completed. Check above logs."
         }
     }
 }
