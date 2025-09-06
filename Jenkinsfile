@@ -22,7 +22,7 @@ pipeline {
         stage('Build with Maven') {
             steps {
                 echo "⚙️ Building Spring Boot JAR with Maven..."
-                bat "mvn clean package -DskipTests"
+                bat "\"${tool 'Maven'}\\bin\\mvn.cmd\" clean package -DskipTests"
             }
         }
 
