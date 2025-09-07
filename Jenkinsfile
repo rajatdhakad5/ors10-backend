@@ -2,13 +2,12 @@ pipeline {
     agent any
 
     environment {
-        JAVA_HOME    = "C:\\Program Files\\Java\\jdk-11.0.15.1"
-        PATH         = "${env.JAVA_HOME}\\bin;${env.PATH}"
+        JAVA_HOME = "C:\\Program Files\\Java\\jdk-11.0.15.1"
+        PATH = "${env.JAVA_HOME}\\bin;${env.PATH}"
         BACKEND_REPO = "https://github.com/rajatdhakad5/ors10-backend.git"
         BACKEND_BRANCH = "master"
-        JAR_FILE     = "target\\orsp10-backend-0.0.1-SNAPSHOT.jar"
+        JAR_FILE = "target\\orsp10-backend-0.0.1-SNAPSHOT.jar"
         BACKEND_PORT = "8084"
-        MAVEN_HOME   = "${tool 'Maven'}"   // Jenkins में "Maven" नाम का tool configure होना चाहिए
     }
 
     stages {
@@ -23,28 +22,26 @@ pipeline {
         stage('Build with Maven') {
             steps {
                 echo "⚙️ Building Spring Boot JAR with Maven..."
-                bat "\"${env.MAVEN_HOME}\\bin\\mvn.cmd\" clean package -DskipTests"
+                bat "\"${tool 'Maven'}\\bin\\mvn.cmd\" clean package -DskipTests"
             }
         }
 
-        stage('Restart Backend') {
+        stage('Run Backend (Foreground)') {
             steps {
-                echo "♻ Restarting backend (java -jar on port ${env.BACKEND_PORT})..."
+                echo "♻ Running backend JAR in foreground (logs will appear below)..."
                 script {
-                    // Kill old process safely
+                    // Kill old process if running
                     bat """
-                        for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":${env.BACKEND_PORT}"') do (
-                            echo Killing process on port ${env.BACKEND_PORT} with PID %%a
-                            taskkill /PID %%a /F
-                        )
-                        timeout /t 3 >nul
-                        exit /b 0
+                    for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":${env.BACKEND_PORT}"') do (
+                        echo Killing process on port ${env.BACKEND_PORT} with PID %%a
+                        taskkill /PID %%a /F
+                    )
                     """
 
-                    // Start new backend process
+                    // Run JAR in foreground so logs come in Jenkins console
                     bat """
-                        cd /d target
-                        start cmd /c "java -jar orsp10-backend-0.0.1-SNAPSHOT.jar --server.port=${env.BACKEND_PORT}"
+                    cd /d target
+                    java -jar orsp10-backend-0.0.1-SNAPSHOT.jar --server.port=${env.BACKEND_PORT}
                     """
                 }
             }
@@ -53,13 +50,10 @@ pipeline {
 
     post {
         success {
-            echo "✅ Backend pipeline completed successfully."
+            echo "✅ Backend JAR is running in foreground. Logs are visible in console."
         }
         failure {
             echo "❌ Backend pipeline failed. Check above logs."
-        }
-        always {
-            echo "📌 Pipeline finished (success/failure)."
         }
     }
 }
