@@ -59,9 +59,11 @@ pipeline {
                         echo "⏳ Waiting for backend... Attempt ${i} of ${retries}"
 
                         def status = bat(
-                            script: "curl -s -o NUL -w \"%{http_code}\" http://localhost:${env.BACKEND_PORT}/actuator/health",
+                            script: "curl -s -o NUL -w \"%%{http_code}\" http://localhost:${env.BACKEND_PORT}/actuator/health",
                             returnStdout: true
                         ).trim()
+
+                        echo "HTTP Status: ${status}"
 
                         if (status == "200") {
                             echo "✅ Backend is UP"
