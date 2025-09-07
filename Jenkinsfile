@@ -30,9 +30,11 @@ pipeline {
             steps {
                 echo "♻ Restarting backend (java -jar on port ${env.BACKEND_PORT})..."
                 script {
-                    // Kill old process running on port 8084
+                    // Kill old process if exists (ignore error if not found)
                     bat '''
-                    for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":8084"') do taskkill /PID %%a /F
+                    for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":8084"') do (
+                        taskkill /PID %%a /F || echo "No process running on 8084"
+                    )
                     '''
 
                     // Start new backend on port 8084 from target folder
