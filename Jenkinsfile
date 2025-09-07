@@ -1,45 +1,65 @@
 pipeline {
     agent any
 
+    environment {
+        JAVA_HOME    = "C:\\Program Files\\Java\\jdk-11.0.15.1"
+        PATH         = "${env.JAVA_HOME}\\bin;${env.PATH}"
+        BACKEND_REPO = "https://github.com/rajatdhakad5/ors10-backend.git"
+        BACKEND_BRANCH = "master"
+        JAR_FILE     = "target\\orsp10-backend-0.0.1-SNAPSHOT.jar"
+        BACKEND_PORT = "8084"
+        MAVEN_HOME   = "${tool 'Maven'}"   // Jenkins में "Maven" नाम का tool configure होना चाहिए
+    }
+
     stages {
-        stage('Build Backend') {
+        stage('Checkout') {
             steps {
-                echo "🚀 Building backend..."
-                bat 'mvn clean package -DskipTests'
+                echo "🔄 Checking out backend code..."
+                deleteDir()
+                git branch: "${env.BACKEND_BRANCH}", url: "${env.BACKEND_REPO}"
+            }
+        }
+
+        stage('Build with Maven') {
+            steps {
+                echo "⚙️ Building Spring Boot JAR with Maven..."
+                bat "\"${env.MAVEN_HOME}\\bin\\mvn.cmd\" clean package -DskipTests"
             }
         }
 
         stage('Restart Backend') {
             steps {
-                echo "♻ Restarting backend (java -jar on port 8084)..."
+                echo "♻ Restarting backend (java -jar on port ${env.BACKEND_PORT})..."
                 script {
-                    // Kill process running on 8084 (if any)
-                    bat '''
-                        for /F "tokens=5" %%a in ('netstat -ano ^| findstr ":8084"') do (
-                            echo Killing process on port 8084 with PID %%a  
-                            taskkill /PID %%a /F 
+                    // Kill old process safely
+                    bat """
+                        for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":${env.BACKEND_PORT}"') do (
+                            echo Killing process on port ${env.BACKEND_PORT} with PID %%a
+                            taskkill /PID %%a /F
                         )
-                    '''
-                    
-                    // Run new JAR
-                    bat '''
+                        timeout /t 3 >nul
+                        exit /b 0
+                    """
+
+                    // Start new backend process
+                    bat """
                         cd /d target
-                        start cmd /c "java -jar orsp10-backend-0.0.1-SNAPSHOT.jar --server.port=8084"
-                    '''
+                        start cmd /c "java -jar orsp10-backend-0.0.1-SNAPSHOT.jar --server.port=${env.BACKEND_PORT}"
+                    """
                 }
             }
         }
     }
 
     post {
-        always {
-            echo "📦 Pipeline finished (success/failure)."
-        }
         success {
-            echo "✅ Backend deployed successfully on port 8084."
+            echo "✅ Backend pipeline completed successfully."
         }
         failure {
-            echo "❌ Backend pipeline failed."
+            echo "❌ Backend pipeline failed. Check above logs."
+        }
+        always {
+            echo "📌 Pipeline finished (success/failure)."
         }
     }
 }
