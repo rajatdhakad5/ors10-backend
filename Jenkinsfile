@@ -30,22 +30,18 @@ pipeline {
             steps {
                 echo "♻ Restarting backend on port ${env.BACKEND_PORT}..."
                 script {
-                    // Kill only Java JAR process running on port
+                    // Kill process running on given port
                     bat """
                         for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":${env.BACKEND_PORT}"') do (
-                            for /f "usebackq tokens=*" %%b in (`wmic process where "ProcessId=%%a" get CommandLine /value ^| findstr "java"`) do (
-                                echo Found Java process on port ${env.BACKEND_PORT} with PID %%a
-                                taskkill /PID %%a /F
-                            )
+                            echo Found Java process with PID %%a
+                            taskkill /PID %%a /F
                         )
                         timeout /t 3 >nul
-                        exit /b 0
                     """
 
-                    // Start new backend JAR
+                    // Run JAR in foreground (logs will stream to Jenkins console)
                     bat """
-                        cd /d target
-                        start cmd /c "java -jar orsp10-backend-0.0.1-SNAPSHOT.jar --server.port=${env.BACKEND_PORT}"
+                        java -jar target\\orsp10-backend-0.0.1-SNAPSHOT.jar --server.port=${env.BACKEND_PORT}
                     """
                 }
             }

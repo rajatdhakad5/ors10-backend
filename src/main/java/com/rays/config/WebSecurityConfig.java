@@ -55,6 +55,7 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
             // Define public endpoints that do not require authentication
             .authorizeRequests()
                 .antMatchers("/Auth/**", "/User/profilePic/**", "/Jasper/**").permitAll()
+                .antMatchers("/actuator/health", "/actuator/info").permitAll() // public actuator endpoints
                 .antMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 .anyRequest().authenticated() // All other requests must be authenticated
             .and()
