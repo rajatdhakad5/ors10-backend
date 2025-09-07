@@ -2,12 +2,12 @@ pipeline {
     agent any
 
     environment {
-        JAVA_HOME     = "C:\\Program Files\\Java\\jdk-11.0.15.1"
-        PATH          = "${env.JAVA_HOME}\\bin;${env.PATH}"
-        BACKEND_REPO  = "https://github.com/rajatdhakad5/ors10-backend.git"
+        JAVA_HOME      = "C:\\Program Files\\Java\\jdk-11.0.15.1"
+        PATH           = "${env.JAVA_HOME}\\bin;${env.PATH}"
+        BACKEND_REPO   = "https://github.com/rajatdhakad5/ors10-backend.git"
         BACKEND_BRANCH = "master"
-        JAR_FILE      = "target\\orsp10-backend-0.0.1-SNAPSHOT.jar"
-        BACKEND_PORT  = "8084"
+        JAR_FILE       = "target\\orsp10-backend-0.0.1-SNAPSHOT.jar"
+        BACKEND_PORT   = "8084"
     }
 
     stages {
@@ -52,27 +52,29 @@ pipeline {
             steps {
                 echo "🩺 Checking backend health..."
                 script {
-                    bat '''
-                    setlocal enabledelayedexpansion
-                    set RETRIES=5
-                    set COUNT=1
-                    :RETRY
-                    curl -s http://localhost:8084/actuator/health >nul
-                    if !errorlevel! == 0 (
-                        echo ✅ Backend is UP
-                        exit /b 0
-                    ) else (
-                        if !COUNT! lss !RETRIES! (
-                            echo ⏳ Waiting for backend... Attempt !COUNT! of !RETRIES!
-                            set /a COUNT=!COUNT!+1
-                            timeout /t 5 >nul
-                            goto :RETRY
-                        ) else (
-                            echo ❌ Backend did not start properly
-                            exit /b 1
-                        )
-                    )
-                    '''
+                    def retries = 10
+                    def success = false
+
+                    for (int i = 1; i <= retries; i++) {
+                        echo "⏳ Waiting for backend... Attempt ${i} of ${retries}"
+
+                        def status = bat(
+                            script: "curl -s -o NUL -w \"%{http_code}\" http://localhost:${env.BACKEND_PORT}/actuator/health",
+                            returnStdout: true
+                        ).trim()
+
+                        if (status == "200") {
+                            echo "✅ Backend is UP"
+                            success = true
+                            break
+                        } else {
+                            sleep(time: 10, unit: "SECONDS")
+                        }
+                    }
+
+                    if (!success) {
+                        error("❌ Backend did not start properly")
+                    }
                 }
             }
         }
